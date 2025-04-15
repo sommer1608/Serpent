@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Homework Help for Parents</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #f2f6fa;
+        margin: 0;
+        padding: 20px;
+      }
+      .app-container {
+        max-width: 800px;
+        margin: auto;
+        background: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+      }
+      label {
+        font-weight: bold;
+        margin-top: 10px;
+        display: block;
+      }
+      select,
+      textarea,
+      button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 1rem;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .output {
+        display: none;
+        margin-top: 20px;
+        background: #e8f5e9;
+        border-left: 5px solid #4caf50;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      .output h3,
+      .output h4 {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <h1>Homework Help for Parents</h1>
+
+      <label for="grade">Grade Level:</label>
+      <select id="grade">
+        <option value="">--Select Grade--</option>
+        <option value="K">Kindergarten</option>
+        <option value="1">Grade 1</option>
+        <option value="2">Grade 2</option>
+        <option value="3">Grade 3</option>
+        <option value="4">Grade 4</option>
+        <option value="5">Grade 5</option>
+      </select>
+
+      <label for="subject">Subject:</label>
+      <select id="subject">
+        <option value="">--Select Subject--</option>
+        <option value="math">Math</option>
+        <option value="science">Science</option>
+        <option value="reading">Reading</option>
+        <option value="writing">Writing</option>
+      </select>
+
+      <label for="question">Enter Topic or Question:</label>
+      <textarea
+        id="question"
+        rows="4"
+        placeholder="E.g., What is a fraction?"
+      ></textarea>
+
+      <button onclick="getHelp()">Get Help</button>
+
+      <div id="output" class="output">
+        <h3>Explanation:</h3>
+        <p id="explanation">[Explanation will appear here]</p>
+        <h4>Learning Tips:</h4>
+        <ul id="tips"></ul>
+      </div>
+    </div>
+    <script>
+      const helpDatabase = {
+        "what is a fraction": {
+          explanation:
+            "A fraction shows a part of a whole. For example, 1/2 means one out of two equal parts.",
+          tips: [
+            "Use real objects like pizza or chocolate bars to show parts.",
+            "Draw and color shapes split into sections.",
+          ],
+        },
+        photosynthesis: {
+          explanation:
+            "Photosynthesis is the process plants use to turn sunlight, water, and air into food.",
+          tips: [
+            "Show kids leaves and how they face the sun.",
+            "Use simple diagrams of plants and the sun.",
+          ],
+        },
+        noun: {
+          explanation:
+            "A noun is a word that names a person, place, thing, or idea.",
+          tips: [
+            "Play 'noun scavenger hunt' around the house.",
+            "Use picture books and point out nouns together.",
+          ],
+        },
+      };
+
+      function formatTips(tips) {
+        return tips.map((tip) => `<li>${tip}</li>`).join("");
+      }
+
+      function getLocalHelp(questionInput) {
+        const result = helpDatabase[questionInput.toLowerCase()];
+        if (result) {
+          return {
+            explanation: result.explanation,
+            tips: result.tips,
+          };
+        }
+        return null;
+      }
+
+      const API_KEY = "AIzaSyCSW6E9YcP5ggEYsmjTCxjDL42b82EIkxo"; // Check this key's validity
+
+      async function getHelp() {
+        const question = document.getElementById("question").value.trim();
+        const output = document.getElementById("output");
+        const explanationBox = document.getElementById("explanation");
+        const tipsBox = document.getElementById("tips");
+
+        if (!question) {
+          alert("Please enter a question.");
+          return;
+        }
+
+        // Try local help first
+        const localResult = getLocalHelp(question);
+        if (localResult) {
+          explanationBox.innerText = localResult.explanation;
+          tipsBox.innerHTML = formatTips(localResult.tips);
+          output.style.display = "block";
+          return;
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+        const body = {
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Explain this in a simple way for a parent helping a child: ${question}`,
+                },
+              ],
+            },
+          ],
+        };
+
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+
+          const data = await response.json();
+
+          const reply =
+            data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+
+          if (reply) {
+            explanationBox.innerText = reply;
+            tipsBox.innerHTML =
+              "<li>Talk through the topic slowly.</li><li>Use real-life examples to connect the idea.</li>";
+          } else {
+            throw new Error("No valid reply from Gemini");
+          }
+
+          output.style.display = "block";
+        } catch (err) {
+          console.error("Gemini API error:", err);
+
+          explanationBox.innerText =
+            "Sorry, we couldn’t get help online. Try breaking the topic down or searching for examples.";
+          tipsBox.innerHTML =
+            "<li>Use visuals and stories to explain the topic.</li><li>Search for simple videos or diagrams.</li>";
+          output.style.display = "block";
+        }
+      }
+    </script>
+  </body>
+</html>
